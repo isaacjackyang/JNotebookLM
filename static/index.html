@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>JNotebookLM</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="sidebar panel">
+        <div class="brand">
+          <p class="eyebrow">LOCAL RESEARCH OS</p>
+          <h1>JNotebookLM</h1>
+          <p class="muted">本地版 NotebookLM，現在改為向量嵌入檢索，並保留 OCR、STT 與 llama.cpp 串接。</p>
+        </div>
+
+        <section class="status-card">
+          <div class="status-title">Runtime</div>
+          <div id="runtime-status" class="status-body">讀取中...</div>
+        </section>
+
+        <section class="notebook-create">
+          <h2>New Notebook</h2>
+          <form id="create-notebook-form">
+            <input id="notebook-title" name="title" type="text" placeholder="例如：產品研究 / 課程筆記" required />
+            <textarea id="notebook-description" name="description" rows="3" placeholder="描述這個 notebook 要做什麼"></textarea>
+            <button type="submit">建立 Notebook</button>
+          </form>
+        </section>
+
+        <section class="notebook-list">
+          <div class="section-head">
+            <h2>Notebooks</h2>
+            <button id="refresh-notebooks" class="ghost-button" type="button">重新整理</button>
+          </div>
+          <div id="notebook-items" class="stack"></div>
+        </section>
+      </aside>
+
+      <main class="workspace">
+        <section class="hero panel">
+          <div>
+            <p class="eyebrow">SOURCE-DRIVEN WORKSPACE</p>
+            <h2 id="active-notebook-title">先建立或選擇一個 Notebook</h2>
+            <p id="active-notebook-description" class="muted">
+              上傳文件、圖片、音訊或影片後，即可使用向量檢索加 llama.cpp 做 NotebookLM 風格問答。
+            </p>
+          </div>
+          <div class="hero-actions">
+            <button class="accent" data-generate="overview" type="button">產生 Overview</button>
+            <button data-generate="faq" type="button">產生 FAQ</button>
+            <button data-generate="timeline" type="button">產生 Timeline</button>
+          </div>
+        </section>
+
+        <section class="grid">
+          <div class="panel">
+            <div class="section-head">
+              <h3>Sources</h3>
+              <span class="pill">Vector RAG / OCR / STT / Video</span>
+            </div>
+            <form id="upload-form" class="upload-box">
+              <input id="source-files" type="file" multiple />
+              <p>拖曳或選取來源檔案。影片會先抽音軌，再交由 STT 模型轉錄，chunk 之後寫入向量索引。</p>
+              <button type="submit">上傳並處理</button>
+            </form>
+            <div id="source-list" class="stack"></div>
+          </div>
+
+          <div class="panel chat-panel">
+            <div class="section-head">
+              <h3>Chat</h3>
+              <span class="pill">llama.cpp + Vector Retrieval</span>
+            </div>
+            <div id="chat-log" class="chat-log"></div>
+            <form id="chat-form" class="chat-form">
+              <textarea id="chat-question" rows="3" placeholder="問問題，例如：請根據上傳資料整理重點、風險與時序"></textarea>
+              <button type="submit">送出</button>
+            </form>
+          </div>
+        </section>
+
+        <section class="panel output-panel">
+          <div class="section-head">
+            <h3>Studio Output</h3>
+            <span class="pill">Overview / FAQ / Timeline</span>
+          </div>
+          <pre id="studio-output" class="studio-output">尚未產生內容。</pre>
+        </section>
+      </main>
+    </div>
+
+    <template id="notebook-item-template">
+      <button class="notebook-item" type="button">
+        <strong class="item-title"></strong>
+        <span class="item-description"></span>
+      </button>
+    </template>
+
+    <template id="source-item-template">
+      <article class="source-item">
+        <header>
+          <strong class="source-name"></strong>
+          <span class="source-status"></span>
+        </header>
+        <p class="source-meta"></p>
+      </article>
+    </template>
+
+    <template id="message-template">
+      <article class="message">
+        <header class="message-role"></header>
+        <div class="message-content"></div>
+        <div class="citations"></div>
+      </article>
+    </template>
+
+    <script src="/static/app.js" defer></script>
+  </body>
+</html>
