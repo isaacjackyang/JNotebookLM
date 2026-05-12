@@ -1,38 +1,48 @@
 # JNotebookLM
 
-JNotebookLM 是一個本地優先的 NotebookLM 風格研究工具，使用 Python 後端與 `index.html` 單頁 GUI，重點放在：
+JNotebookLM 是本地優先的 Notebook + Design Studio 專案，整合：
 
-- 與本地 `llama.cpp` 的 `llama-server` OpenAI 相容 API 配合
-- 上傳文件後做 chunk 向量嵌入檢索與來源引用
-- 圖片 OCR
-- 音訊 STT
-- 影片抽音軌後再做 STT
+- Notebook 來源管理與向量檢索問答
+- `llama.cpp` 相容聊天 API
+- OCR / STT / 影片抽音軌流程
+- Huashu Local Studio 設計工作區
+- 可持久化的設定頁與一鍵啟動腳本
 
-這不是雲端 SaaS 複製品，而是可在你自己機器上擴充的本地 MVP。
+## 主要功能
 
-## 目前功能
+### Notebook
 
-- 建立 notebook
-- 上傳來源檔案
-- 支援 `txt/md/pdf/docx/html/json/csv`
-- 支援圖片 OCR
-  - 預設 `pytesseract`
-  - 可自行改成 `easyocr`
-- 支援音訊轉文字
-  - 預設 `faster-whisper`
-- 支援影片抽音軌後轉文字
-  - 需要系統安裝 `ffmpeg`
-- 本地向量嵌入檢索
-  - 預設 `fastembed`
-  - 預設模型 `BAAI/bge-small-zh-v1.5`
-- 將檢索結果送到 `llama.cpp` 生成回答
+- 建立、重新命名、刪除 notebook
+- 上傳 `txt / md / pdf / docx / html / json / csv`
+- 圖片 OCR、音訊 STT、影片抽音軌後 STT
+- `fastembed` 向量嵌入檢索
 - 產生 `overview / faq / timeline`
+- 回答附來源片段引用
+
+### Design Studio
+
+- 建立設計 session
+- 方向顧問一次產生 3 個設計方向
+- 生成 `prototype / slides / motion / infographic`
+- 5 維度評審
+- `EDITMODE` tweaks 套用
+- session / artifact / event 落地到本地 workspace 與 SQLite
+
+### Runtime / UX
+
+- `run.py` 會優先切到 repo 內 `.venv`
+- 服務就緒後自動開啟瀏覽器
+- `install.cmd` 做第一次安裝
+- `start.cmd` 固定用 `7000` 啟動
+- GUI 右上角齒輪可調整模型與處理細節
+- 設定保存於 `data/app-settings.json`
 
 ## 專案結構
 
 ```text
 app/
   config.py
+  design_service.py
   embeddings.py
   llama_client.py
   main.py
@@ -45,29 +55,30 @@ static/
   index.html
   app.js
   styles.css
+data/
 install.cmd
+start.cmd
 run.py
 requirements.txt
 ```
 
 ## 安裝
 
-第一次安裝最簡單的方式：
+第一次使用建議直接執行：
 
 ```powershell
 .\install.cmd
 ```
 
-`install.cmd` 會：
+它會：
 
 - 建立 `.venv`
 - 升級 `pip`
 - 安裝 `requirements.txt`
-- 檢查 `ffmpeg` 與 `tesseract` 是否存在
+- 檢查 `ffmpeg`
+- 檢查 `tesseract`
 
-如果你要手動安裝，也可以用下面流程。
-
-### 1. 建立虛擬環境
+如果你想手動安裝：
 
 ```powershell
 python -m venv .venv
@@ -75,24 +86,16 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-### 2. 安裝系統依賴
+## 系統依賴
 
-- OCR:
-  - `tesseract` 必須安裝到系統中，且可從命令列呼叫
-- 影片 STT:
-  - `ffmpeg` 必須安裝到系統中，且可從命令列呼叫
+- OCR 需要 `tesseract`
+- 音訊 / 影片處理需要 `ffmpeg`
 
-如果你要改用 `easyocr`，請額外安裝：
+如果缺少系統工具，應用程式仍可啟動，但相關功能會失效或回報警告。
 
-```powershell
-pip install easyocr
-```
+## llama.cpp
 
-`fastembed` 第一次使用時會下載 embedding model 到本機快取資料夾。
-
-## llama.cpp 串接方式
-
-建議用 `llama-server` 啟動 OpenAI 相容 API，例如：
+請先啟動相容 OpenAI API 的 `llama.cpp` 服務，例如：
 
 ```powershell
 llama-server `
@@ -101,75 +104,79 @@ llama-server `
   --port 8080
 ```
 
-JNotebookLM 預設會呼叫：
+預設設定：
 
-- `http://127.0.0.1:8080/v1/models`
-- `http://127.0.0.1:8080/v1/chat/completions`
-
-如果你的埠號或 URL 不同，可用環境變數調整。
-
-## 環境變數
-
-```powershell
-$env:JNOTEBOOKLM_HOST="127.0.0.1"
-$env:JNOTEBOOKLM_PORT="8000"
-$env:JNOTEBOOKLM_EMBEDDING_PROVIDER="fastembed"
-$env:JNOTEBOOKLM_EMBEDDING_MODEL="BAAI/bge-small-zh-v1.5"
-$env:JNOTEBOOKLM_EMBEDDING_THREADS="4"
-$env:JNOTEBOOKLM_EMBEDDING_DEVICE="auto"
-$env:JNOTEBOOKLM_EMBEDDING_CACHE_DIR="F:\Documents\GitHub\JNotebookLM\data\models"
-$env:JNOTEBOOKLM_LLAMA_BASE_URL="http://127.0.0.1:8080"
-$env:JNOTEBOOKLM_LLAMA_MODEL=""
-$env:JNOTEBOOKLM_LLAMA_TIMEOUT="180"
-$env:JNOTEBOOKLM_OCR_PROVIDER="tesseract"
-$env:JNOTEBOOKLM_OCR_LANGUAGES="eng,chi_tra"
-$env:JNOTEBOOKLM_STT_PROVIDER="faster-whisper"
-$env:JNOTEBOOKLM_WHISPER_MODEL="small"
-$env:JNOTEBOOKLM_WHISPER_DEVICE="auto"
-$env:JNOTEBOOKLM_WHISPER_COMPUTE_TYPE="int8"
-```
+- `JNOTEBOOKLM_LLAMA_BASE_URL=http://127.0.0.1:8080`
 
 ## 啟動
 
-安裝完成後直接執行：
+最短路徑：
+
+```powershell
+.\start.cmd
+```
+
+或：
 
 ```powershell
 python run.py
 ```
 
-`run.py` 會優先切到專案內的 `.venv` 啟動。
+預設會開啟：
 
-打開瀏覽器：
+- [http://127.0.0.1:7000](http://127.0.0.1:7000) 使用 `start.cmd`
+- [http://127.0.0.1:8000](http://127.0.0.1:8000) 使用 `python run.py` 且未覆寫 port
 
-```text
-http://127.0.0.1:8000
+如果不想自動開瀏覽器：
+
+```powershell
+$env:JNOTEBOOKLM_AUTO_OPEN="0"
+python run.py
 ```
 
-## 使用流程
+## 設定頁
 
-1. 建立 notebook
-2. 上傳文件、圖片、音訊或影片
-3. 等待來源狀態變成 `ready`
-4. 在 Chat 區提問
-5. 或使用 `Overview / FAQ / Timeline` 按鈕整理內容
+右上角齒輪可調整：
 
-## 重要限制
+- server host / port
+- retrieval chunk size / overlap / top-k
+- embedding provider / model / threads / device / cache dir
+- `llama.cpp` base URL / model / timeout / API key
+- OCR provider / languages
+- STT provider / whisper model / device / compute type
 
-- 這版已改為本地向量嵌入檢索，但仍是 SQLite + JSON 向量，還不是專門的向量資料庫
-- `llama.cpp` 需要你自己先啟動 `llama-server`
-- embedding model 第一次推論前可能需要先下載
-- OCR 成功率依影像品質與語言包而定
-- `faster-whisper` 第一次載入模型可能較慢
-- 影片檔如果很大，轉錄時間會明顯增加
+API：
 
-## 下一步建議
+- `GET /api/settings`
+- `PUT /api/settings`
 
-如果要更接近真正 NotebookLM，建議下一輪補這些：
+注意：
 
-- 專用向量資料庫或 ANN 索引
-- notebook 級摘要快取
-- speaker diarization
-- PDF 頁碼級引用
-- 引用片段高亮
-- 背景工作佇列
-- WebSocket 即時進度
+- `host` 和 `port` 變更後需要重啟服務才會生效
+- embedding 相關設定變更後，下一次檢索會自動重建 embedding client
+
+## 其他 API
+
+- `GET /api/health`
+- `GET /api/notebooks`
+- `POST /api/notebooks`
+- `PUT /api/notebooks/{notebook_id}`
+- `DELETE /api/notebooks/{notebook_id}`
+- `GET /api/notebooks/{notebook_id}`
+- `POST /api/notebooks/{notebook_id}/sources`
+- `POST /api/notebooks/{notebook_id}/chat`
+- `POST /api/notebooks/{notebook_id}/generate`
+- `GET /api/design/sessions`
+- `POST /api/design/sessions`
+- `GET /api/design/sessions/{session_id}`
+- `POST /api/design/sessions/{session_id}/advisor`
+- `POST /api/design/sessions/{session_id}/artifacts`
+- `GET /api/design/sessions/{session_id}/artifacts/{artifact_id}/content`
+- `POST /api/design/sessions/{session_id}/artifacts/{artifact_id}/critique`
+- `POST /api/design/sessions/{session_id}/artifacts/{artifact_id}/tweaks`
+
+## 目前限制
+
+- OCR 依賴系統級 `tesseract`
+- 設計產物目前以 HTML 為主，尚未補齊 PPTX / PDF 匯出
+- 若 `llama.cpp` 離線，Notebook 與 Design Studio 會回退到本地摘要或模板流程

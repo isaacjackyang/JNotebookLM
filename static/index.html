@@ -7,13 +7,15 @@
     <link rel="stylesheet" href="/static/styles.css" />
   </head>
   <body>
-    <div class="shell">
-      <aside class="sidebar panel">
+    <div class="tri-shell">
+      <aside class="panel pane left-pane">
         <div class="brand-row">
           <div class="brand">
-            <p class="eyebrow">LOCAL RESEARCH OS</p>
+            <p class="eyebrow">LOCAL SOURCE HUB</p>
             <h1>JNotebookLM</h1>
-            <p class="muted">本地版 NotebookLM，支援向量檢索、OCR、STT、影片抽音軌與 llama.cpp。</p>
+            <p class="muted">
+              左側管理來源與 notebook；中間進行對話；右側做 Studio 產出與設計生成。
+            </p>
           </div>
           <button id="open-settings" class="settings-button" type="button" title="設定">
             &#9881;
@@ -27,7 +29,7 @@
 
         <section class="notebook-create">
           <h2>New Notebook</h2>
-          <form id="create-notebook-form">
+          <form id="create-notebook-form" class="stack">
             <input id="notebook-title" name="title" type="text" placeholder="例如：產品研究 / 課程筆記" required />
             <textarea id="notebook-description" name="description" rows="3" placeholder="描述這個 notebook 要做什麼"></textarea>
             <button type="submit">建立 Notebook</button>
@@ -41,68 +43,130 @@
           </div>
           <div id="notebook-items" class="stack"></div>
         </section>
+
+        <section class="notebook-manage">
+          <div class="section-head">
+            <h2>Manage Notebook</h2>
+          </div>
+          <form id="rename-notebook-form" class="stack compact">
+            <input id="rename-notebook-title" type="text" placeholder="重新命名 notebook" required />
+            <textarea id="rename-notebook-description" rows="2" placeholder="更新描述（可留空）"></textarea>
+            <button type="submit">儲存名稱與描述</button>
+          </form>
+          <button id="delete-notebook" class="danger-button" type="button">刪除目前 Notebook</button>
+          <p class="muted tiny">刪除會同步清除這個 notebook 的來源、chunk、對話紀錄與本地檔案。</p>
+        </section>
+
+        <section class="source-manager">
+          <div class="section-head">
+            <h2>Sources</h2>
+            <span class="pill">Vector RAG / OCR / STT</span>
+          </div>
+          <form id="upload-form" class="upload-box">
+            <input id="source-files" type="file" multiple />
+            <p>支援文件、圖片、音訊與影片；影片會先抽音軌後做 STT。</p>
+            <button type="submit">上傳並處理</button>
+          </form>
+          <div id="source-list" class="stack"></div>
+        </section>
       </aside>
 
-      <main class="workspace">
-        <section class="hero panel">
-          <div>
-            <p class="eyebrow">SOURCE-DRIVEN WORKSPACE</p>
-            <h2 id="active-notebook-title">先建立或選擇一個 Notebook</h2>
-            <p id="active-notebook-description" class="muted">
-              上傳文件、圖片、音訊或影片後，即可用本地向量檢索加 llama.cpp 做 NotebookLM 風格問答。
-            </p>
+      <main class="panel pane middle-pane">
+        <header class="chat-header">
+          <p class="eyebrow">CHAT CENTER</p>
+          <h2 id="active-notebook-title">先建立或選擇一個 Notebook</h2>
+          <p id="active-notebook-description" class="muted">中欄專注對話，回答會依左側來源檢索結果產生。</p>
+        </header>
+
+        <section class="chat-section">
+          <div id="chat-log" class="chat-log"></div>
+          <form id="chat-form" class="chat-form">
+            <textarea id="chat-question" rows="4" placeholder="問問題，例如：請根據來源整理關鍵風險與時序"></textarea>
+            <button type="submit">送出</button>
+          </form>
+        </section>
+      </main>
+
+      <aside class="panel pane right-pane">
+        <section class="studio-card">
+          <div class="section-head">
+            <h2>Notebook Studio</h2>
+            <span class="pill">Overview / FAQ / Timeline</span>
           </div>
           <div class="hero-actions">
-            <button class="accent" data-generate="overview" type="button">產生 Overview</button>
-            <button data-generate="faq" type="button">產生 FAQ</button>
-            <button data-generate="timeline" type="button">產生 Timeline</button>
-          </div>
-        </section>
-
-        <section class="grid">
-          <div class="panel">
-            <div class="section-head">
-              <h3>Sources</h3>
-              <span class="pill">Vector RAG / OCR / STT / Video</span>
-            </div>
-            <form id="upload-form" class="upload-box">
-              <input id="source-files" type="file" multiple />
-              <p>拖曳或選取來源檔案。影片會先抽音軌，再交由 STT 模型轉錄，並建立可檢索的 chunk。</p>
-              <button type="submit">上傳並處理</button>
-            </form>
-            <div id="source-list" class="stack"></div>
-          </div>
-
-          <div class="panel chat-panel">
-            <div class="section-head">
-              <h3>Chat</h3>
-              <span class="pill">llama.cpp + Vector Retrieval</span>
-            </div>
-            <div id="chat-log" class="chat-log"></div>
-            <form id="chat-form" class="chat-form">
-              <textarea id="chat-question" rows="3" placeholder="問問題，例如：請根據上傳資料整理重點、風險與時序"></textarea>
-              <button type="submit">送出</button>
-            </form>
-          </div>
-        </section>
-
-        <section class="panel output-panel">
-          <div class="section-head">
-            <h3>Studio Output</h3>
-            <span class="pill">Overview / FAQ / Timeline</span>
+            <button class="accent" data-generate="overview" type="button">Overview</button>
+            <button data-generate="faq" type="button">FAQ</button>
+            <button data-generate="timeline" type="button">Timeline</button>
           </div>
           <pre id="studio-output" class="studio-output">尚未產生內容。</pre>
         </section>
-      </main>
+
+        <section class="studio-card design-card">
+          <div class="section-head">
+            <h2>Huashu Local Studio</h2>
+            <span class="pill">Python Local-first</span>
+          </div>
+
+          <form id="design-create-form" class="stack">
+            <input id="design-name" type="text" placeholder="Design Session 名稱" required />
+            <textarea id="design-brief" rows="3" placeholder="設計任務簡述（例如：做一份產品提案頁）" required></textarea>
+            <input id="design-language" type="text" value="zh-Hant" placeholder="語言代碼，例如 zh-Hant / en" />
+            <button type="submit">建立 Design Session</button>
+          </form>
+
+          <div class="section-head">
+            <h3>Sessions</h3>
+            <button id="refresh-design-sessions" class="ghost-button" type="button">更新</button>
+          </div>
+          <div id="design-session-items" class="stack"></div>
+          <p id="design-session-meta" class="muted tiny"></p>
+
+          <div class="stack compact">
+            <textarea id="advisor-goal" rows="2" placeholder="方向顧問目標（可選）"></textarea>
+            <button id="run-advisor" type="button">產生 3 個方向</button>
+            <pre id="advisor-output" class="studio-output small">尚未執行方向顧問。</pre>
+          </div>
+
+          <form id="artifact-form" class="stack compact">
+            <select id="artifact-type">
+              <option value="prototype">prototype</option>
+              <option value="slides">slides</option>
+              <option value="motion">motion</option>
+              <option value="infographic">infographic</option>
+            </select>
+            <input id="artifact-direction" type="text" placeholder="方向名稱（可選）" />
+            <textarea id="artifact-requirements" rows="3" placeholder="補充需求（可選）"></textarea>
+            <button type="submit">生成產物</button>
+          </form>
+
+          <div class="section-head">
+            <h3>Artifacts</h3>
+          </div>
+          <div id="design-artifact-items" class="stack"></div>
+
+          <div class="stack compact">
+            <textarea id="critique-focus" rows="2" placeholder="評審重點（可選）"></textarea>
+            <button id="run-critique" type="button">5 維度評審</button>
+            <pre id="critique-output" class="studio-output small">尚未執行評審。</pre>
+          </div>
+
+          <div class="stack compact">
+            <textarea id="tweaks-json" rows="3" placeholder='Tweaks JSON，例如 {"accent":"#A23D1A","radius":"22px"}'></textarea>
+            <button id="apply-tweaks" type="button">套用 Tweaks</button>
+          </div>
+
+          <iframe id="design-preview" class="design-preview" title="Design preview"></iframe>
+        </section>
+      </aside>
     </div>
 
     <section id="settings-screen" class="settings-screen hidden" aria-hidden="true">
-      <div class="settings-shell panel">
+      <div class="panel settings-shell">
         <div class="settings-header">
           <div>
             <p class="eyebrow">MODEL CONTROL</p>
             <h2>Settings</h2>
-            <p class="muted">調整各模型、檢索與處理細節。`host` / `port` 變更需重啟服務。</p>
+            <p class="muted">調整各模型與處理參數。`host` 和 `port` 需要重啟服務才會生效。</p>
           </div>
           <button id="close-settings" class="ghost-button" type="button">關閉</button>
         </div>
@@ -185,6 +249,20 @@
         <div class="message-content"></div>
         <div class="citations"></div>
       </article>
+    </template>
+
+    <template id="design-session-item-template">
+      <button class="design-session-item" type="button">
+        <strong class="item-title"></strong>
+        <span class="item-description"></span>
+      </button>
+    </template>
+
+    <template id="design-artifact-item-template">
+      <button class="design-artifact-item" type="button">
+        <strong class="item-title"></strong>
+        <span class="item-description"></span>
+      </button>
     </template>
 
     <script src="/static/app.js" defer></script>

@@ -72,6 +72,38 @@ class Storage:
                     created_at TEXT NOT NULL,
                     FOREIGN KEY(notebook_id) REFERENCES notebooks(id)
                 );
+
+                CREATE TABLE IF NOT EXISTS design_sessions (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    brief TEXT NOT NULL DEFAULT '',
+                    language TEXT NOT NULL DEFAULT 'zh-Hant',
+                    workspace_path TEXT NOT NULL,
+                    design_spec_path TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS design_artifacts (
+                    id TEXT PRIMARY KEY,
+                    session_id TEXT NOT NULL,
+                    artifact_type TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    file_path TEXT NOT NULL,
+                    preview_text TEXT NOT NULL DEFAULT '',
+                    metadata_json TEXT NOT NULL DEFAULT '{}',
+                    created_at TEXT NOT NULL,
+                    FOREIGN KEY(session_id) REFERENCES design_sessions(id)
+                );
+
+                CREATE TABLE IF NOT EXISTS design_events (
+                    id TEXT PRIMARY KEY,
+                    session_id TEXT NOT NULL,
+                    event_type TEXT NOT NULL,
+                    payload_json TEXT NOT NULL DEFAULT '{}',
+                    created_at TEXT NOT NULL,
+                    FOREIGN KEY(session_id) REFERENCES design_sessions(id)
+                );
                 """
             )
             self._ensure_column(conn, "chunks", "embedding_json", "TEXT NOT NULL DEFAULT '[]'")
@@ -111,6 +143,39 @@ class Storage:
                 (notebook_id,),
             ).fetchone()
         return dict(row) if row else None
+
+    def update_notebook(self, notebook_id: str, title: str, description: str) -> dict[str, Any] | None:
+        with self._connect() as conn:
+            cursor = conn.execute(
+                """
+                UPDATE notebooks
+                SET title = ?, description = ?
+                WHERE id = ?
+                """,
+                (title.strip(), description.strip(), notebook_id),
+            )
+            if cursor.rowcount <= 0:
+                return None
+            row = conn.execute(
+                "SELECT id, title, description, created_at FROM notebooks WHERE id = ?",
+                (notebook_id,),
+            ).fetchone()
+        return dict(row) if row else None
+
+    def delete_notebook(self, notebook_id: str) -> bool:
+        with self._connect() as conn:
+            notebook = conn.execute(
+                "SELECT id FROM notebooks WHERE id = ?",
+                (notebook_id,),
+            ).fetchone()
+            if notebook is None:
+                return False
+
+            conn.execute("DELETE FROM chunks WHERE notebook_id = ?", (notebook_id,))
+            conn.execute("DELETE FROM messages WHERE notebook_id = ?", (notebook_id,))
+            conn.execute("DELETE FROM sources WHERE notebook_id = ?", (notebook_id,))
+            conn.execute("DELETE FROM notebooks WHERE id = ?", (notebook_id,))
+        return True
 
     def create_source(
         self,
@@ -290,6 +355,240 @@ class Storage:
             ).fetchall()
         return [self._row_to_message(dict(row)) for row in rows]
 
+    def create_design_session(
+        self,
+        name: str,
+        brief: str,
+        language: str,
+        workspace_path: str,
+        design_spec_path: str,
+    ) -> dict[str, Any]:
+        created_at = now_utc()
+        session = {
+            "id": str(uuid.uuid4()),
+            "name": name.strip(),
+            "brief": brief.strip(),
+            "language": language.strip() or "zh-Hant",
+            "workspace_path": workspace_path,
+            "design_spec_path": design_spec_path,
+            "created_at": created_at,
+            "updated_at": created_at,
+        }
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO design_sessions (
+                    id, name, brief, language, workspace_path, design_spec_path, created_at, updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    session["id"],
+                    session["name"],
+                    session["brief"],
+                    session["language"],
+                    session["workspace_path"],
+                    session["design_spec_path"],
+                    session["created_at"],
+                    session["updated_at"],
+                ),
+            )
+        return session
+
+    def list_design_sessions(self) -> list[dict[str, Any]]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT
+                    id,
+                    name,
+                    brief,
+                    language,
+                    workspace_path,
+                    design_spec_path,
+                    created_at,
+                    updated_at
+                FROM design_sessions
+                ORDER BY updated_at DESC
+                """
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def get_design_session(self, session_id: str) -> dict[str, Any] | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT
+                    id,
+                    name,
+                    brief,
+                    language,
+                    workspace_path,
+                    design_spec_path,
+                    created_at,
+                    updated_at
+                FROM design_sessions
+                WHERE id = ?
+                """,
+                (session_id,),
+            ).fetchone()
+        return dict(row) if row else None
+
+    def touch_design_session(self, session_id: str) -> None:
+        with self._connect() as conn:
+            conn.execute(
+                "UPDATE design_sessions SET updated_at = ? WHERE id = ?",
+                (now_utc(), session_id),
+            )
+
+    def add_design_artifact(
+        self,
+        session_id: str,
+        artifact_type: str,
+        title: str,
+        file_path: str,
+        preview_text: str,
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        artifact = {
+            "id": str(uuid.uuid4()),
+            "session_id": session_id,
+            "artifact_type": artifact_type,
+            "title": title.strip(),
+            "file_path": file_path,
+            "preview_text": preview_text.strip(),
+            "metadata_json": json.dumps(metadata or {}, ensure_ascii=False),
+            "created_at": now_utc(),
+        }
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO design_artifacts (
+                    id, session_id, artifact_type, title, file_path, preview_text, metadata_json, created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    artifact["id"],
+                    artifact["session_id"],
+                    artifact["artifact_type"],
+                    artifact["title"],
+                    artifact["file_path"],
+                    artifact["preview_text"],
+                    artifact["metadata_json"],
+                    artifact["created_at"],
+                ),
+            )
+        self.touch_design_session(session_id)
+        return self._row_to_design_artifact(artifact)
+
+    def list_design_artifacts(self, session_id: str) -> list[dict[str, Any]]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT
+                    id,
+                    artifact_type,
+                    title,
+                    file_path,
+                    preview_text,
+                    metadata_json,
+                    created_at
+                FROM design_artifacts
+                WHERE session_id = ?
+                ORDER BY created_at DESC
+                """,
+                (session_id,),
+            ).fetchall()
+        return [self._row_to_design_artifact(dict(row)) for row in rows]
+
+    def get_design_artifact(self, artifact_id: str) -> dict[str, Any] | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT
+                    id,
+                    session_id,
+                    artifact_type,
+                    title,
+                    file_path,
+                    preview_text,
+                    metadata_json,
+                    created_at
+                FROM design_artifacts
+                WHERE id = ?
+                """,
+                (artifact_id,),
+            ).fetchone()
+        return self._row_to_design_artifact(dict(row)) if row else None
+
+    def update_design_artifact(
+        self,
+        artifact_id: str,
+        preview_text: str,
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
+        with self._connect() as conn:
+            conn.execute(
+                """
+                UPDATE design_artifacts
+                SET preview_text = ?, metadata_json = ?
+                WHERE id = ?
+                """,
+                (
+                    preview_text,
+                    json.dumps(metadata or {}, ensure_ascii=False),
+                    artifact_id,
+                ),
+            )
+            conn.execute(
+                """
+                UPDATE design_sessions
+                SET updated_at = ?
+                WHERE id = (SELECT session_id FROM design_artifacts WHERE id = ?)
+                """,
+                (now_utc(), artifact_id),
+            )
+
+    def add_design_event(self, session_id: str, event_type: str, payload: dict[str, Any]) -> dict[str, Any]:
+        event = {
+            "id": str(uuid.uuid4()),
+            "session_id": session_id,
+            "event_type": event_type,
+            "payload_json": json.dumps(payload, ensure_ascii=False),
+            "created_at": now_utc(),
+        }
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO design_events (id, session_id, event_type, payload_json, created_at)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    event["id"],
+                    event["session_id"],
+                    event["event_type"],
+                    event["payload_json"],
+                    event["created_at"],
+                ),
+            )
+        self.touch_design_session(session_id)
+        return self._row_to_design_event(event)
+
+    def list_design_events(self, session_id: str, limit: int = 60) -> list[dict[str, Any]]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT id, event_type, payload_json, created_at
+                FROM design_events
+                WHERE session_id = ?
+                ORDER BY created_at DESC
+                LIMIT ?
+                """,
+                (session_id, max(limit, 1)),
+            ).fetchall()
+        return [self._row_to_design_event(dict(row)) for row in rows]
+
     @staticmethod
     def _row_to_source(row: dict[str, Any]) -> dict[str, Any]:
         return {
@@ -322,4 +621,26 @@ class Storage:
             "content": row["content"],
             "created_at": row["created_at"],
             "citations": json.loads(row["citations_json"]) if row.get("citations_json") else [],
+        }
+
+    @staticmethod
+    def _row_to_design_artifact(row: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "id": row["id"],
+            "session_id": row.get("session_id", ""),
+            "artifact_type": row["artifact_type"],
+            "title": row["title"],
+            "file_path": row["file_path"],
+            "preview_text": row["preview_text"],
+            "created_at": row["created_at"],
+            "metadata": json.loads(row["metadata_json"]) if row.get("metadata_json") else {},
+        }
+
+    @staticmethod
+    def _row_to_design_event(row: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "id": row["id"],
+            "event_type": row["event_type"],
+            "payload": json.loads(row["payload_json"]) if row.get("payload_json") else {},
+            "created_at": row["created_at"],
         }

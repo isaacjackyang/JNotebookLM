@@ -293,7 +293,7 @@ class NotebookService:
         ]
         note = None
         if restart_required_fields:
-            note = "Host 或 port 變更已儲存，但要重新啟動服務後才會生效。"
+            note = "Host 和 port 已儲存，但需要重新啟動服務才會生效。"
 
         return {
             "settings": self.settings.to_dict(),

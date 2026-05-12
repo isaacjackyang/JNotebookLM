@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import math
-from typing import Iterable
-
-from fastembed import TextEmbedding
+from typing import TYPE_CHECKING, Iterable
 
 from app.config import Settings
+
+if TYPE_CHECKING:
+    from fastembed import TextEmbedding
 
 
 def normalize_vector(vector: list[float]) -> list[float]:
@@ -66,15 +67,24 @@ class EmbeddingService:
             self.settings.embedding_device,
             self.settings.embedding_cache_dir,
         )
+
         if self._client is None or self._client_signature != signature:
+            try:
+                from fastembed import TextEmbedding
+            except Exception as exc:  # noqa: BLE001
+                raise RuntimeError(
+                    "fastembed is not installed. Run `pip install -r requirements.txt` first."
+                ) from exc
+
             self._client = TextEmbedding(
-                model_name=self.settings.embedding_model,
+                model_name=self.model_name,
                 cache_dir=self.settings.embedding_cache_dir,
                 threads=self.settings.embedding_threads,
                 cuda=self.settings.embedding_device,
                 lazy_load=False,
             )
             self._client_signature = signature
+
         return self._client
 
     @staticmethod
