@@ -62,6 +62,14 @@ button.ghost-button {
   border: 1px solid var(--stroke);
 }
 
+button.danger-button {
+  background: #8f2f22;
+}
+
+button.danger-button:hover {
+  background: #7a271b;
+}
+
 input,
 textarea,
 select {
@@ -141,6 +149,15 @@ textarea {
   border-radius: 18px;
   background: var(--panel-strong);
   border: 1px solid var(--stroke);
+}
+
+.notebook-manage {
+  padding: 0.95rem;
+  border-radius: 18px;
+  background: var(--panel-strong);
+  border: 1px solid var(--stroke);
+  display: grid;
+  gap: 0.72rem;
 }
 
 .status-title {

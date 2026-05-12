@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 import uvicorn
@@ -7,7 +8,7 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.config import STATIC_DIR, settings
+from app.config import STATIC_DIR, TEXT_DIR, UPLOAD_DIR, settings
 from app.design_service import DesignStudioService
 from app.schemas import (
     ChatRequest,
@@ -27,6 +28,7 @@ from app.schemas import (
     NotebookCreate,
     NotebookDetail,
     NotebookOut,
+    NotebookUpdate,
     SourceOut,
 )
 from app.services import NotebookService
@@ -53,6 +55,26 @@ def list_notebooks() -> list[dict]:
 @app.post("/api/notebooks", response_model=NotebookOut)
 def create_notebook(payload: NotebookCreate) -> dict:
     return storage.create_notebook(payload.title, payload.description)
+
+
+@app.put("/api/notebooks/{notebook_id}", response_model=NotebookOut)
+def update_notebook(notebook_id: str, payload: NotebookUpdate) -> dict:
+    notebook = storage.update_notebook(notebook_id, payload.title, payload.description)
+    if notebook is None:
+        raise HTTPException(status_code=404, detail="Notebook not found")
+    return notebook
+
+
+@app.delete("/api/notebooks/{notebook_id}")
+def delete_notebook(notebook_id: str) -> dict:
+    deleted = storage.delete_notebook(notebook_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Notebook not found")
+
+    _remove_notebook_dir(UPLOAD_DIR, notebook_id)
+    _remove_notebook_dir(TEXT_DIR, notebook_id)
+
+    return {"deleted": True, "id": notebook_id}
 
 
 @app.get("/api/notebooks/{notebook_id}", response_model=NotebookDetail)
@@ -177,4 +199,13 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 def run() -> None:
     uvicorn.run("app.main:app", host=settings.host, port=settings.port, reload=False)
+
+
+def _remove_notebook_dir(base_dir: Path, notebook_id: str) -> None:
+    target = (base_dir / notebook_id).resolve()
+    base = base_dir.resolve()
+    if target.parent != base:
+        return
+    if target.exists():
+        shutil.rmtree(target, ignore_errors=True)
 
