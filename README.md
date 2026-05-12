@@ -1,38 +1,43 @@
 # JNotebookLM
 
-JNotebookLM 是一個本地優先的 NotebookLM 風格研究工具，使用 Python 後端與 `index.html` 單頁 GUI，重點放在：
+JNotebookLM 現在是 **本地優先 Notebook + Design Studio** 的 Python 專案：
 
-- 與本地 `llama.cpp` 的 `llama-server` OpenAI 相容 API 配合
-- 上傳文件後做 chunk 向量嵌入檢索與來源引用
-- 圖片 OCR
-- 音訊 STT
-- 影片抽音軌後再做 STT
+- 左欄管理來源與 notebook
+- 中欄進行檢索問答
+- 右欄進行 Studio 產出（Overview/FAQ/Timeline + Huashu Local Studio）
 
-這不是雲端 SaaS 複製品，而是可在你自己機器上擴充的本地 MVP。
+---
 
-## 目前功能
+## 這次重構重點
 
-- 建立 notebook
-- 上傳來源檔案
-- 支援 `txt/md/pdf/docx/html/json/csv`
-- 支援圖片 OCR
-  - 預設 `pytesseract`
-  - 可自行改成 `easyocr`
-- 支援音訊轉文字
-  - 預設 `faster-whisper`
-- 支援影片抽音軌後轉文字
-  - 需要系統安裝 `ffmpeg`
-- 本地向量嵌入檢索
-  - 預設 `fastembed`
-  - 預設模型 `BAAI/bge-small-zh-v1.5`
-- 將檢索結果送到 `llama.cpp` 生成回答
-- 產生 `overview / faq / timeline`
+### 1. 抽 Huashu 的設計方法
+
+已落地到 `DesignStudioService`：
+
+- `方向顧問 Fallback`：一次輸出 3 個差異化方向（色彩 / 字型 / 敘事）
+- `多模式設計產物`：`prototype / slides / motion / infographic`
+- `5 維度專家評審`：哲學一致性 / 視覺層級 / 細節執行 / 功能性 / 創新性
+- `Tweaks 可調參`：採用 EDITMODE block，透過 API 即時套用
+- `反 AI slop` 提示約束：避免 generic 風格，強化有意圖的視覺語言
+
+### 2. 抽 Open CoDesign 的工程骨架
+
+已落地到 Python 本地架構：
+
+- `Design as Session`：每個設計任務都是 session
+- `Workspace on disk`：每個 session 都有自己的本地 workspace
+- `DESIGN.md baton`：每個 workspace 內都有可持續更新的設計系統檔
+- `JSONL history`：session 事件可回放 (`data/design/sessions/<session_id>.jsonl`)
+- `SQLite metadata`：session/artifact/event 狀態查詢與 UI 切換
+
+---
 
 ## 專案結構
 
 ```text
 app/
   config.py
+  design_service.py        # Huashu 方法 + Open CoDesign 骨架的 Python 落地
   embeddings.py
   llama_client.py
   main.py
@@ -42,12 +47,57 @@ app/
   storage.py
   text_extract.py
 static/
-  index.html
+  index.html               # 三欄版面：左來源 / 中對話 / 右Studio
   app.js
   styles.css
 run.py
 requirements.txt
 ```
+
+---
+
+## 本地資料目錄
+
+```text
+data/
+  jnotebooklm.db
+  uploads/
+  texts/
+  models/
+  design/
+    workspaces/
+      <session-slug-id>/
+        DESIGN.md
+        brief.md
+        artifacts/
+    sessions/
+      <session-id>.jsonl
+```
+
+---
+
+## API（新增設計工作流）
+
+- `GET /api/design/sessions`
+- `POST /api/design/sessions`
+- `GET /api/design/sessions/{session_id}`
+- `POST /api/design/sessions/{session_id}/advisor`
+- `POST /api/design/sessions/{session_id}/artifacts`
+- `GET /api/design/sessions/{session_id}/artifacts/{artifact_id}/content`
+- `POST /api/design/sessions/{session_id}/artifacts/{artifact_id}/critique`
+- `POST /api/design/sessions/{session_id}/artifacts/{artifact_id}/tweaks`
+
+---
+
+## 既有 Notebook 功能（保留）
+
+- 建立 notebook
+- 上傳來源檔案 (`txt/md/pdf/docx/html/json/csv`)
+- 圖片 OCR、音訊 STT、影片抽音軌後 STT
+- 向量檢索 + llama.cpp 回答
+- 產生 `overview / faq / timeline`
+
+---
 
 ## 安裝
 
@@ -61,22 +111,10 @@ pip install -r requirements.txt
 
 ### 2. 安裝系統依賴
 
-- OCR:
-  - `tesseract` 必須安裝到系統中，且可從命令列呼叫
-- 影片 STT:
-  - `ffmpeg` 必須安裝到系統中，且可從命令列呼叫
+- OCR: `tesseract`
+- 影片 STT: `ffmpeg`
 
-如果你要改用 `easyocr`，請額外安裝：
-
-```powershell
-pip install easyocr
-```
-
-`fastembed` 第一次使用時會下載 embedding model 到本機快取資料夾。
-
-## llama.cpp 串接方式
-
-建議用 `llama-server` 啟動 OpenAI 相容 API，例如：
+### 3. 啟動 llama.cpp 相容 API（例如 `llama-server`）
 
 ```powershell
 llama-server `
@@ -85,71 +123,40 @@ llama-server `
   --port 8080
 ```
 
-JNotebookLM 預設會呼叫：
-
-- `http://127.0.0.1:8080/v1/models`
-- `http://127.0.0.1:8080/v1/chat/completions`
-
-如果你的埠號或 URL 不同，可用環境變數調整。
-
-## 環境變數
-
-```powershell
-$env:JNOTEBOOKLM_HOST="127.0.0.1"
-$env:JNOTEBOOKLM_PORT="8000"
-$env:JNOTEBOOKLM_EMBEDDING_PROVIDER="fastembed"
-$env:JNOTEBOOKLM_EMBEDDING_MODEL="BAAI/bge-small-zh-v1.5"
-$env:JNOTEBOOKLM_EMBEDDING_THREADS="4"
-$env:JNOTEBOOKLM_EMBEDDING_DEVICE="auto"
-$env:JNOTEBOOKLM_EMBEDDING_CACHE_DIR="F:\Documents\GitHub\JNotebookLM\data\models"
-$env:JNOTEBOOKLM_LLAMA_BASE_URL="http://127.0.0.1:8080"
-$env:JNOTEBOOKLM_LLAMA_MODEL=""
-$env:JNOTEBOOKLM_LLAMA_TIMEOUT="180"
-$env:JNOTEBOOKLM_OCR_PROVIDER="tesseract"
-$env:JNOTEBOOKLM_OCR_LANGUAGES="eng,chi_tra"
-$env:JNOTEBOOKLM_STT_PROVIDER="faster-whisper"
-$env:JNOTEBOOKLM_WHISPER_MODEL="small"
-$env:JNOTEBOOKLM_WHISPER_DEVICE="auto"
-$env:JNOTEBOOKLM_WHISPER_COMPUTE_TYPE="int8"
-```
-
-## 啟動
+### 4. 啟動服務
 
 ```powershell
 python run.py
 ```
 
-打開瀏覽器：
+打開：`http://127.0.0.1:8000`
 
-```text
-http://127.0.0.1:8000
+---
+
+## 環境變數（節錄）
+
+```powershell
+$env:JNOTEBOOKLM_HOST="127.0.0.1"
+$env:JNOTEBOOKLM_PORT="8000"
+$env:JNOTEBOOKLM_LLAMA_BASE_URL="http://127.0.0.1:8080"
+$env:JNOTEBOOKLM_LLAMA_MODEL=""
+$env:JNOTEBOOKLM_OCR_PROVIDER="tesseract"
+$env:JNOTEBOOKLM_STT_PROVIDER="faster-whisper"
+$env:JNOTEBOOKLM_EMBEDDING_MODEL="BAAI/bge-small-zh-v1.5"
 ```
 
-## 使用流程
+---
 
-1. 建立 notebook
-2. 上傳文件、圖片、音訊或影片
-3. 等待來源狀態變成 `ready`
-4. 在 Chat 區提問
-5. 或使用 `Overview / FAQ / Timeline` 按鈕整理內容
+## 目前限制
 
-## 重要限制
+- 設計產物先以 HTML 為主，尚未補齊 PPTX/PDF 自動匯出流水線
+- 設計生成品質仍受本地模型能力影響
+- 若模型離線，Design Studio 會回退到本地模板與規則評估
 
-- 這版已改為本地向量嵌入檢索，但仍是 SQLite + JSON 向量，還不是專門的向量資料庫
-- `llama.cpp` 需要你自己先啟動 `llama-server`
-- embedding model 第一次推論前可能需要先下載
-- OCR 成功率依影像品質與語言包而定
-- `faster-whisper` 第一次載入模型可能較慢
-- 影片檔如果很大，轉錄時間會明顯增加
+---
 
 ## 下一步建議
 
-如果要更接近真正 NotebookLM，建議下一輪補這些：
-
-- 專用向量資料庫或 ANN 索引
-- notebook 級摘要快取
-- speaker diarization
-- PDF 頁碼級引用
-- 引用片段高亮
-- 背景工作佇列
-- WebSocket 即時進度
+- 補上 HTML→PPTX/PDF 的 Python 匯出器
+- 增加多檔案 artifact 編排（landing + pricing + onboarding）
+- 加入 Playwright 視覺驗證流程（生成後自檢）

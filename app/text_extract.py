@@ -9,11 +9,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from bs4 import BeautifulSoup
-from docx import Document
-from PIL import Image
-from pypdf import PdfReader
-
 from app.config import Settings
 
 
@@ -57,6 +52,8 @@ def extract_text(file_path: Path, settings: Settings) -> ExtractionResult:
 
 
 def _extract_pdf(file_path: Path) -> ExtractionResult:
+    from pypdf import PdfReader
+
     reader = PdfReader(str(file_path))
     pages = [page.extract_text() or "" for page in reader.pages]
     return ExtractionResult(
@@ -67,12 +64,16 @@ def _extract_pdf(file_path: Path) -> ExtractionResult:
 
 
 def _extract_docx(file_path: Path) -> ExtractionResult:
+    from docx import Document
+
     document = Document(str(file_path))
     paragraphs = [paragraph.text for paragraph in document.paragraphs if paragraph.text.strip()]
     return ExtractionResult(text="\n".join(paragraphs), kind="docx")
 
 
 def _extract_html(file_path: Path) -> ExtractionResult:
+    from bs4 import BeautifulSoup
+
     html = _read_text(file_path)
     soup = BeautifulSoup(html, "html.parser")
     return ExtractionResult(text=soup.get_text("\n", strip=True), kind="html")
@@ -96,6 +97,8 @@ def _read_text(file_path: Path) -> str:
 
 def _extract_image_ocr(file_path: Path, settings: Settings) -> ExtractionResult:
     provider = settings.ocr_provider.lower()
+    from PIL import Image
+
     image = Image.open(file_path)
 
     if provider == "tesseract":

@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import math
-from typing import Iterable
-
-from fastembed import TextEmbedding
+from typing import TYPE_CHECKING, Iterable
 
 from app.config import Settings
+
+if TYPE_CHECKING:
+    from fastembed import TextEmbedding
 
 
 def normalize_vector(vector: list[float]) -> list[float]:
@@ -54,6 +55,12 @@ class EmbeddingService:
         if self.provider_name != "fastembed":
             raise RuntimeError(f"Unsupported embedding provider: {self.provider_name}")
         if self._client is None:
+            try:
+                from fastembed import TextEmbedding
+            except Exception as exc:  # noqa: BLE001
+                raise RuntimeError(
+                    "fastembed is not installed. Run `pip install -r requirements.txt` first."
+                ) from exc
             self._client = TextEmbedding(
                 model_name=self.model_name,
                 cache_dir=self.settings.embedding_cache_dir,

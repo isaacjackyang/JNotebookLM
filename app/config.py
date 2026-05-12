@@ -11,6 +11,9 @@ DB_PATH = DATA_DIR / "jnotebooklm.db"
 UPLOAD_DIR = DATA_DIR / "uploads"
 TEXT_DIR = DATA_DIR / "texts"
 MODEL_CACHE_DIR = DATA_DIR / "models"
+DESIGN_DIR = DATA_DIR / "design"
+DESIGN_WORKSPACE_DIR = DESIGN_DIR / "workspaces"
+DESIGN_SESSION_DIR = DESIGN_DIR / "sessions"
 STATIC_DIR = ROOT_DIR / "static"
 
 
@@ -43,7 +46,16 @@ class Settings:
     whisper_compute_type: str = field(default_factory=lambda: os.getenv("JNOTEBOOKLM_WHISPER_COMPUTE_TYPE", "int8"))
 
     def ensure_dirs(self) -> None:
-        for path in (DATA_DIR, UPLOAD_DIR, TEXT_DIR, MODEL_CACHE_DIR, STATIC_DIR):
+        for path in (
+            DATA_DIR,
+            UPLOAD_DIR,
+            TEXT_DIR,
+            MODEL_CACHE_DIR,
+            DESIGN_DIR,
+            DESIGN_WORKSPACE_DIR,
+            DESIGN_SESSION_DIR,
+            STATIC_DIR,
+        ):
             path.mkdir(parents=True, exist_ok=True)
 
 
