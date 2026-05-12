@@ -37,6 +37,19 @@
           <div id="notebook-items" class="stack"></div>
         </section>
 
+        <section class="notebook-manage">
+          <div class="section-head">
+            <h2>Manage Notebook</h2>
+          </div>
+          <form id="rename-notebook-form" class="stack compact">
+            <input id="rename-notebook-title" type="text" placeholder="重新命名 notebook" required />
+            <textarea id="rename-notebook-description" rows="2" placeholder="更新描述（可留空）"></textarea>
+            <button type="submit">儲存名稱與描述</button>
+          </form>
+          <button id="delete-notebook" class="danger-button" type="button">刪除目前 Notebook</button>
+          <p class="muted tiny">刪除會同步清除這個 notebook 的來源、chunk、對話紀錄與本地檔案。</p>
+        </section>
+
         <section class="source-manager">
           <div class="section-head">
             <h2>Sources</h2>

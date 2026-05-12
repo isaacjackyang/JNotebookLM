@@ -144,6 +144,39 @@ class Storage:
             ).fetchone()
         return dict(row) if row else None
 
+    def update_notebook(self, notebook_id: str, title: str, description: str) -> dict[str, Any] | None:
+        with self._connect() as conn:
+            cursor = conn.execute(
+                """
+                UPDATE notebooks
+                SET title = ?, description = ?
+                WHERE id = ?
+                """,
+                (title.strip(), description.strip(), notebook_id),
+            )
+            if cursor.rowcount <= 0:
+                return None
+            row = conn.execute(
+                "SELECT id, title, description, created_at FROM notebooks WHERE id = ?",
+                (notebook_id,),
+            ).fetchone()
+        return dict(row) if row else None
+
+    def delete_notebook(self, notebook_id: str) -> bool:
+        with self._connect() as conn:
+            notebook = conn.execute(
+                "SELECT id FROM notebooks WHERE id = ?",
+                (notebook_id,),
+            ).fetchone()
+            if notebook is None:
+                return False
+
+            conn.execute("DELETE FROM chunks WHERE notebook_id = ?", (notebook_id,))
+            conn.execute("DELETE FROM messages WHERE notebook_id = ?", (notebook_id,))
+            conn.execute("DELETE FROM sources WHERE notebook_id = ?", (notebook_id,))
+            conn.execute("DELETE FROM notebooks WHERE id = ?", (notebook_id,))
+        return True
+
     def create_source(
         self,
         notebook_id: str,

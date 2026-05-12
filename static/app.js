@@ -13,6 +13,8 @@ const chatLog = document.getElementById("chat-log");
 const studioOutput = document.getElementById("studio-output");
 const activeNotebookTitle = document.getElementById("active-notebook-title");
 const activeNotebookDescription = document.getElementById("active-notebook-description");
+const renameNotebookTitle = document.getElementById("rename-notebook-title");
+const renameNotebookDescription = document.getElementById("rename-notebook-description");
 
 const designSessionItems = document.getElementById("design-session-items");
 const designSessionMeta = document.getElementById("design-session-meta");
@@ -120,6 +122,27 @@ function renderMessages(messages) {
   chatLog.scrollTop = chatLog.scrollHeight;
 }
 
+function syncNotebookManageFields(notebook) {
+  if (!renameNotebookTitle || !renameNotebookDescription) {
+    return;
+  }
+  if (!notebook) {
+    renameNotebookTitle.value = "";
+    renameNotebookDescription.value = "";
+    return;
+  }
+  renameNotebookTitle.value = notebook.title || "";
+  renameNotebookDescription.value = notebook.description || "";
+}
+
+function clearNotebookDetailView() {
+  activeNotebookTitle.textContent = "先建立或選擇一個 Notebook";
+  activeNotebookDescription.textContent = "中欄專注對話，回答會依左側來源檢索結果產生。";
+  sourceList.innerHTML = "";
+  chatLog.innerHTML = "";
+  syncNotebookManageFields(null);
+}
+
 async function loadHealth() {
   const health = await request("/api/health");
   renderRuntime(health);
@@ -127,12 +150,17 @@ async function loadHealth() {
 
 async function loadNotebooks() {
   state.notebooks = await request("/api/notebooks");
+  const activeExists = state.notebooks.some((item) => item.id === state.activeNotebookId);
   if (!state.activeNotebookId && state.notebooks.length > 0) {
     state.activeNotebookId = state.notebooks[0].id;
+  } else if (!activeExists) {
+    state.activeNotebookId = state.notebooks.length > 0 ? state.notebooks[0].id : null;
   }
   renderNotebookList();
   if (state.activeNotebookId) {
     await selectNotebook(state.activeNotebookId);
+  } else {
+    clearNotebookDetailView();
   }
 }
 
@@ -145,6 +173,7 @@ async function selectNotebook(notebookId) {
   activeNotebookDescription.textContent = notebook.description || "沒有描述";
   renderSources(notebook.sources || []);
   renderMessages(notebook.messages || []);
+  syncNotebookManageFields(notebook);
 }
 
 async function createNotebook(event) {
@@ -164,6 +193,50 @@ async function createNotebook(event) {
 
   document.getElementById("create-notebook-form").reset();
   state.activeNotebookId = notebook.id;
+  await loadNotebooks();
+}
+
+async function renameNotebook(event) {
+  event.preventDefault();
+  if (!state.activeNotebookId) {
+    alert("請先選擇 notebook");
+    return;
+  }
+
+  const title = renameNotebookTitle.value.trim();
+  const description = renameNotebookDescription.value.trim();
+  if (!title) {
+    alert("名稱不能為空");
+    return;
+  }
+
+  await request(`/api/notebooks/${state.activeNotebookId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title, description }),
+  });
+
+  await loadNotebooks();
+}
+
+async function deleteNotebook() {
+  if (!state.activeNotebookId) {
+    alert("請先選擇 notebook");
+    return;
+  }
+
+  const target = state.notebooks.find((item) => item.id === state.activeNotebookId);
+  const label = target?.title || "這本 notebook";
+  const confirmed = window.confirm(`確定要刪除「${label}」嗎？此動作無法復原。`);
+  if (!confirmed) {
+    return;
+  }
+
+  await request(`/api/notebooks/${state.activeNotebookId}`, {
+    method: "DELETE",
+  });
+
+  state.activeNotebookId = null;
   await loadNotebooks();
 }
 
@@ -485,6 +558,14 @@ async function applyDesignTweaks() {
 
 document.getElementById("create-notebook-form").addEventListener("submit", (event) => {
   createNotebook(event).catch((error) => alert(error.message));
+});
+
+document.getElementById("rename-notebook-form").addEventListener("submit", (event) => {
+  renameNotebook(event).catch((error) => alert(error.message));
+});
+
+document.getElementById("delete-notebook").addEventListener("click", () => {
+  deleteNotebook().catch((error) => alert(error.message));
 });
 
 document.getElementById("upload-form").addEventListener("submit", (event) => {
