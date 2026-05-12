@@ -9,10 +9,15 @@
   <body>
     <div class="shell">
       <aside class="sidebar panel">
-        <div class="brand">
-          <p class="eyebrow">LOCAL RESEARCH OS</p>
-          <h1>JNotebookLM</h1>
-          <p class="muted">本地版 NotebookLM，現在改為向量嵌入檢索，並保留 OCR、STT 與 llama.cpp 串接。</p>
+        <div class="brand-row">
+          <div class="brand">
+            <p class="eyebrow">LOCAL RESEARCH OS</p>
+            <h1>JNotebookLM</h1>
+            <p class="muted">本地版 NotebookLM，支援向量檢索、OCR、STT、影片抽音軌與 llama.cpp。</p>
+          </div>
+          <button id="open-settings" class="settings-button" type="button" title="設定">
+            &#9881;
+          </button>
         </div>
 
         <section class="status-card">
@@ -44,7 +49,7 @@
             <p class="eyebrow">SOURCE-DRIVEN WORKSPACE</p>
             <h2 id="active-notebook-title">先建立或選擇一個 Notebook</h2>
             <p id="active-notebook-description" class="muted">
-              上傳文件、圖片、音訊或影片後，即可使用向量檢索加 llama.cpp 做 NotebookLM 風格問答。
+              上傳文件、圖片、音訊或影片後，即可用本地向量檢索加 llama.cpp 做 NotebookLM 風格問答。
             </p>
           </div>
           <div class="hero-actions">
@@ -62,7 +67,7 @@
             </div>
             <form id="upload-form" class="upload-box">
               <input id="source-files" type="file" multiple />
-              <p>拖曳或選取來源檔案。影片會先抽音軌，再交由 STT 模型轉錄，chunk 之後寫入向量索引。</p>
+              <p>拖曳或選取來源檔案。影片會先抽音軌，再交由 STT 模型轉錄，並建立可檢索的 chunk。</p>
               <button type="submit">上傳並處理</button>
             </form>
             <div id="source-list" class="stack"></div>
@@ -90,6 +95,72 @@
         </section>
       </main>
     </div>
+
+    <section id="settings-screen" class="settings-screen hidden" aria-hidden="true">
+      <div class="settings-shell panel">
+        <div class="settings-header">
+          <div>
+            <p class="eyebrow">MODEL CONTROL</p>
+            <h2>Settings</h2>
+            <p class="muted">調整各模型、檢索與處理細節。`host` / `port` 變更需重啟服務。</p>
+          </div>
+          <button id="close-settings" class="ghost-button" type="button">關閉</button>
+        </div>
+
+        <form id="settings-form" class="settings-form">
+          <div class="settings-grid">
+            <section class="settings-group">
+              <h3>Server</h3>
+              <label>Host<input id="settings-host" name="host" type="text" /></label>
+              <label>Port<input id="settings-port" name="port" type="number" min="1" max="65535" /></label>
+            </section>
+
+            <section class="settings-group">
+              <h3>Retrieval</h3>
+              <label>Chunk Size<input id="settings-chunk-size" name="chunk_size" type="number" min="200" /></label>
+              <label>Chunk Overlap<input id="settings-chunk-overlap" name="chunk_overlap" type="number" min="0" /></label>
+              <label>Top K<input id="settings-top-k" name="retrieval_top_k" type="number" min="1" max="50" /></label>
+            </section>
+
+            <section class="settings-group">
+              <h3>Embeddings</h3>
+              <label>Provider<input id="settings-embedding-provider" name="embedding_provider" type="text" /></label>
+              <label>Model<input id="settings-embedding-model" name="embedding_model" type="text" /></label>
+              <label>Threads<input id="settings-embedding-threads" name="embedding_threads" type="number" min="1" /></label>
+              <label>Device<input id="settings-embedding-device" name="embedding_device" type="text" /></label>
+              <label>Cache Dir<input id="settings-embedding-cache-dir" name="embedding_cache_dir" type="text" /></label>
+            </section>
+
+            <section class="settings-group">
+              <h3>llama.cpp</h3>
+              <label>Base URL<input id="settings-llama-base-url" name="llama_base_url" type="text" /></label>
+              <label>Model<input id="settings-llama-model" name="llama_model" type="text" /></label>
+              <label>Timeout<input id="settings-llama-timeout" name="llama_timeout" type="number" min="5" /></label>
+              <label>API Key<input id="settings-llama-api-key" name="llama_api_key" type="text" /></label>
+            </section>
+
+            <section class="settings-group">
+              <h3>OCR</h3>
+              <label>Provider<input id="settings-ocr-provider" name="ocr_provider" type="text" /></label>
+              <label>Languages<input id="settings-ocr-languages" name="ocr_languages" type="text" placeholder="eng,chi_tra" /></label>
+            </section>
+
+            <section class="settings-group">
+              <h3>STT</h3>
+              <label>Provider<input id="settings-stt-provider" name="stt_provider" type="text" /></label>
+              <label>Whisper Model<input id="settings-whisper-model" name="whisper_model" type="text" /></label>
+              <label>Whisper Device<input id="settings-whisper-device" name="whisper_device" type="text" /></label>
+              <label>Compute Type<input id="settings-whisper-compute-type" name="whisper_compute_type" type="text" /></label>
+            </section>
+          </div>
+
+          <div class="settings-footer">
+            <div id="settings-status" class="settings-status">尚未載入設定。</div>
+            <button id="save-settings" class="accent" type="submit">儲存設定</button>
+          </div>
+        </form>
+      </div>
+    </section>
 
     <template id="notebook-item-template">
       <button class="notebook-item" type="button">

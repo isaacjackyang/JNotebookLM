@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 import uvicorn
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
@@ -9,6 +7,8 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import STATIC_DIR, settings
 from app.schemas import (
+    AppSettingsPayload,
+    AppSettingsResponse,
     ChatRequest,
     ChatResponse,
     GenerateRequest,
@@ -25,12 +25,26 @@ from app.storage import Storage
 settings.ensure_dirs()
 storage = Storage()
 service = NotebookService(settings, storage)
-app = FastAPI(title="JNotebookLM", version="0.1.0")
+app = FastAPI(title="JNotebookLM", version="0.2.0")
 
 
 @app.get("/api/health")
 def health() -> dict:
     return service.health()
+
+
+@app.get("/api/settings", response_model=AppSettingsResponse)
+def get_settings() -> dict:
+    return {
+        "settings": service.get_settings(),
+        "restart_required_fields": [],
+        "note": None,
+    }
+
+
+@app.put("/api/settings", response_model=AppSettingsResponse)
+def update_settings(payload: AppSettingsPayload) -> dict:
+    return service.update_settings(payload)
 
 
 @app.get("/api/notebooks", response_model=list[NotebookOut])
@@ -90,4 +104,3 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 def run() -> None:
     uvicorn.run("app.main:app", host=settings.host, port=settings.port, reload=False)
-

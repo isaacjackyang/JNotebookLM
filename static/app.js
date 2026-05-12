@@ -1,6 +1,7 @@
 const state = {
   notebooks: [],
   activeNotebookId: null,
+  settings: null,
 };
 
 const runtimeStatus = document.getElementById("runtime-status");
@@ -10,6 +11,31 @@ const chatLog = document.getElementById("chat-log");
 const studioOutput = document.getElementById("studio-output");
 const activeNotebookTitle = document.getElementById("active-notebook-title");
 const activeNotebookDescription = document.getElementById("active-notebook-description");
+const settingsScreen = document.getElementById("settings-screen");
+const settingsStatus = document.getElementById("settings-status");
+
+const settingsFields = {
+  host: document.getElementById("settings-host"),
+  port: document.getElementById("settings-port"),
+  chunk_size: document.getElementById("settings-chunk-size"),
+  chunk_overlap: document.getElementById("settings-chunk-overlap"),
+  retrieval_top_k: document.getElementById("settings-top-k"),
+  embedding_provider: document.getElementById("settings-embedding-provider"),
+  embedding_model: document.getElementById("settings-embedding-model"),
+  embedding_threads: document.getElementById("settings-embedding-threads"),
+  embedding_device: document.getElementById("settings-embedding-device"),
+  embedding_cache_dir: document.getElementById("settings-embedding-cache-dir"),
+  llama_base_url: document.getElementById("settings-llama-base-url"),
+  llama_model: document.getElementById("settings-llama-model"),
+  llama_timeout: document.getElementById("settings-llama-timeout"),
+  llama_api_key: document.getElementById("settings-llama-api-key"),
+  ocr_provider: document.getElementById("settings-ocr-provider"),
+  ocr_languages: document.getElementById("settings-ocr-languages"),
+  stt_provider: document.getElementById("settings-stt-provider"),
+  whisper_model: document.getElementById("settings-whisper-model"),
+  whisper_device: document.getElementById("settings-whisper-device"),
+  whisper_compute_type: document.getElementById("settings-whisper-compute-type"),
+};
 
 async function request(url, options = {}) {
   const response = await fetch(url, options);
@@ -38,6 +64,7 @@ function renderRuntime(health) {
     <div><strong>OCR</strong>: ${feature.ocr_provider || "-"}</div>
     <div><strong>STT</strong>: ${feature.stt_provider || "-"}</div>
     <div><strong>Whisper</strong>: ${feature.whisper_model || "-"}</div>
+    <div><strong>Chunking</strong>: ${feature.chunk_size || "-"} / ${feature.chunk_overlap || "-"}</div>
   `;
 }
 
@@ -101,9 +128,37 @@ function renderMessages(messages) {
   chatLog.scrollTop = chatLog.scrollHeight;
 }
 
+function openSettings() {
+  settingsScreen.classList.remove("hidden");
+  settingsScreen.setAttribute("aria-hidden", "false");
+}
+
+function closeSettings() {
+  settingsScreen.classList.add("hidden");
+  settingsScreen.setAttribute("aria-hidden", "true");
+}
+
+function renderSettings(payload) {
+  state.settings = payload.settings;
+  const settings = payload.settings || {};
+  for (const [key, field] of Object.entries(settingsFields)) {
+    if (!(key in settings)) {
+      continue;
+    }
+    const value = settings[key];
+    field.value = Array.isArray(value) ? value.join(",") : value;
+  }
+  settingsStatus.textContent = payload.note || "設定已載入。";
+}
+
 async function loadHealth() {
   const health = await request("/api/health");
   renderRuntime(health);
+}
+
+async function loadSettings() {
+  const payload = await request("/api/settings");
+  renderSettings(payload);
 }
 
 async function loadNotebooks() {
@@ -201,6 +256,43 @@ async function generate(mode) {
     : payload.content;
 }
 
+async function saveSettings(event) {
+  event.preventDefault();
+  settingsStatus.textContent = "儲存中...";
+  const payload = {
+    host: settingsFields.host.value.trim(),
+    port: Number(settingsFields.port.value),
+    chunk_size: Number(settingsFields.chunk_size.value),
+    chunk_overlap: Number(settingsFields.chunk_overlap.value),
+    retrieval_top_k: Number(settingsFields.retrieval_top_k.value),
+    embedding_provider: settingsFields.embedding_provider.value.trim(),
+    embedding_model: settingsFields.embedding_model.value.trim(),
+    embedding_threads: Number(settingsFields.embedding_threads.value),
+    embedding_device: settingsFields.embedding_device.value.trim(),
+    embedding_cache_dir: settingsFields.embedding_cache_dir.value.trim(),
+    llama_base_url: settingsFields.llama_base_url.value.trim(),
+    llama_model: settingsFields.llama_model.value.trim(),
+    llama_timeout: Number(settingsFields.llama_timeout.value),
+    llama_api_key: settingsFields.llama_api_key.value.trim(),
+    ocr_provider: settingsFields.ocr_provider.value.trim(),
+    ocr_languages: settingsFields.ocr_languages.value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean),
+    stt_provider: settingsFields.stt_provider.value.trim(),
+    whisper_model: settingsFields.whisper_model.value.trim(),
+    whisper_device: settingsFields.whisper_device.value.trim(),
+    whisper_compute_type: settingsFields.whisper_compute_type.value.trim(),
+  };
+  const response = await request("/api/settings", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  renderSettings(response);
+  await loadHealth();
+}
+
 document.getElementById("create-notebook-form").addEventListener("submit", (event) => {
   createNotebook(event).catch((error) => alert(error.message));
 });
@@ -213,8 +305,31 @@ document.getElementById("chat-form").addEventListener("submit", (event) => {
   sendChat(event).catch((error) => alert(error.message));
 });
 
+document.getElementById("settings-form").addEventListener("submit", (event) => {
+  saveSettings(event).catch((error) => {
+    settingsStatus.textContent = error.message;
+  });
+});
+
 document.getElementById("refresh-notebooks").addEventListener("click", () => {
   loadNotebooks().catch((error) => alert(error.message));
+});
+
+document.getElementById("open-settings").addEventListener("click", () => {
+  openSettings();
+  loadSettings().catch((error) => {
+    settingsStatus.textContent = error.message;
+  });
+});
+
+document.getElementById("close-settings").addEventListener("click", () => {
+  closeSettings();
+});
+
+settingsScreen.addEventListener("click", (event) => {
+  if (event.target === settingsScreen) {
+    closeSettings();
+  }
 });
 
 for (const button of document.querySelectorAll("[data-generate]")) {
@@ -225,5 +340,8 @@ for (const button of document.querySelectorAll("[data-generate]")) {
 
 loadHealth().catch((error) => {
   runtimeStatus.textContent = error.message;
+});
+loadSettings().catch((error) => {
+  settingsStatus.textContent = error.message;
 });
 loadNotebooks().catch((error) => alert(error.message));

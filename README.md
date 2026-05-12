@@ -45,11 +45,27 @@ static/
   index.html
   app.js
   styles.css
+install.cmd
 run.py
 requirements.txt
 ```
 
 ## 安裝
+
+第一次安裝最簡單的方式：
+
+```powershell
+.\install.cmd
+```
+
+`install.cmd` 會：
+
+- 建立 `.venv`
+- 升級 `pip`
+- 安裝 `requirements.txt`
+- 檢查 `ffmpeg` 與 `tesseract` 是否存在
+
+如果你要手動安裝，也可以用下面流程。
 
 ### 1. 建立虛擬環境
 
@@ -115,9 +131,13 @@ $env:JNOTEBOOKLM_WHISPER_COMPUTE_TYPE="int8"
 
 ## 啟動
 
+安裝完成後直接執行：
+
 ```powershell
 python run.py
 ```
+
+`run.py` 會優先切到專案內的 `.venv` 啟動。
 
 打開瀏覽器：
 

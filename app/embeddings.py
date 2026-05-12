@@ -19,6 +19,7 @@ class EmbeddingService:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
         self._client: TextEmbedding | None = None
+        self._client_signature: tuple[str, str, int, str, str] | None = None
 
     @property
     def provider_name(self) -> str:
@@ -28,7 +29,11 @@ class EmbeddingService:
     def model_name(self) -> str:
         return self.settings.embedding_model
 
-    def health(self) -> dict:
+    def invalidate(self) -> None:
+        self._client = None
+        self._client_signature = None
+
+    def health(self) -> dict[str, object]:
         return {
             "provider": self.provider_name,
             "model": self.model_name,
@@ -53,14 +58,23 @@ class EmbeddingService:
     def _get_client(self) -> TextEmbedding:
         if self.provider_name != "fastembed":
             raise RuntimeError(f"Unsupported embedding provider: {self.provider_name}")
-        if self._client is None:
+
+        signature = (
+            self.settings.embedding_provider,
+            self.settings.embedding_model,
+            self.settings.embedding_threads,
+            self.settings.embedding_device,
+            self.settings.embedding_cache_dir,
+        )
+        if self._client is None or self._client_signature != signature:
             self._client = TextEmbedding(
-                model_name=self.model_name,
+                model_name=self.settings.embedding_model,
                 cache_dir=self.settings.embedding_cache_dir,
                 threads=self.settings.embedding_threads,
                 cuda=self.settings.embedding_device,
                 lazy_load=False,
             )
+            self._client_signature = signature
         return self._client
 
     @staticmethod
