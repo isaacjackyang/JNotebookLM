@@ -4,13 +4,24 @@ from pathlib import Path
 
 import uvicorn
 from fastapi import FastAPI, File, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.config import STATIC_DIR, settings
+from app.design_service import DesignStudioService
 from app.schemas import (
     ChatRequest,
     ChatResponse,
+    DesignAdvisorRequest,
+    DesignAdvisorResponse,
+    DesignArtifactGenerateRequest,
+    DesignArtifactOut,
+    DesignCritiqueRequest,
+    DesignCritiqueResponse,
+    DesignSessionCreate,
+    DesignSessionDetail,
+    DesignSessionOut,
+    DesignTweakUpdateRequest,
     GenerateRequest,
     GenerateResponse,
     NotebookCreate,
@@ -25,6 +36,7 @@ from app.storage import Storage
 settings.ensure_dirs()
 storage = Storage()
 service = NotebookService(settings, storage)
+design_service = DesignStudioService(settings, storage)
 app = FastAPI(title="JNotebookLM", version="0.1.0")
 
 
@@ -78,6 +90,81 @@ def generate(notebook_id: str, payload: GenerateRequest) -> dict:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/api/design/sessions", response_model=list[DesignSessionOut])
+def list_design_sessions() -> list[dict]:
+    return design_service.list_sessions()
+
+
+@app.post("/api/design/sessions", response_model=DesignSessionOut)
+def create_design_session(payload: DesignSessionCreate) -> dict:
+    return design_service.create_session(payload.name, payload.brief, payload.language)
+
+
+@app.get("/api/design/sessions/{session_id}", response_model=DesignSessionDetail)
+def get_design_session(session_id: str) -> dict:
+    try:
+        return design_service.session_detail(session_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.post("/api/design/sessions/{session_id}/advisor", response_model=DesignAdvisorResponse)
+def run_design_advisor(session_id: str, payload: DesignAdvisorRequest) -> dict:
+    try:
+        return design_service.advisor(session_id, payload.goal)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.post("/api/design/sessions/{session_id}/artifacts", response_model=DesignArtifactOut)
+def create_design_artifact(session_id: str, payload: DesignArtifactGenerateRequest) -> dict:
+    try:
+        result = design_service.generate_artifact(
+            session_id=session_id,
+            artifact_type=payload.artifact_type,
+            direction_name=payload.direction_name,
+            requirements=payload.requirements,
+        )
+        return result
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/design/sessions/{session_id}/artifacts/{artifact_id}/critique", response_model=DesignCritiqueResponse)
+def critique_design_artifact(session_id: str, artifact_id: str, payload: DesignCritiqueRequest) -> dict:
+    try:
+        return design_service.critique_artifact(session_id, artifact_id, payload.focus)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.post("/api/design/sessions/{session_id}/artifacts/{artifact_id}/tweaks", response_model=DesignArtifactOut)
+def tweak_design_artifact(session_id: str, artifact_id: str, payload: DesignTweakUpdateRequest) -> dict:
+    try:
+        return design_service.apply_tweaks(session_id, artifact_id, payload.values)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.get("/api/design/sessions/{session_id}/artifacts/{artifact_id}/content")
+def get_design_artifact_content(session_id: str, artifact_id: str) -> JSONResponse:
+    try:
+        payload = design_service.read_artifact_content(session_id, artifact_id)
+        return JSONResponse(payload)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @app.get("/")
