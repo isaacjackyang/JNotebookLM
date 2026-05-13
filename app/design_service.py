@@ -317,7 +317,7 @@ class DesignStudioService:
             ),
             "slides": (
                 "Build a 16:9 HTML slide deck scene with 5 slide sections in one document. "
-                "Add keyboard navigation logic for left/right." 
+                "Add keyboard navigation logic for left/right."
             ),
             "motion": (
                 "Build an animation scene that can loop continuously (about 18-25 seconds feeling), "
@@ -647,7 +647,7 @@ class DesignStudioService:
                 "philosophy": "以明確資訊層級和留白為主，先讓訊息可讀，再讓視覺出彩。",
                 "palette": ["#F5F1E8", "#1B1714", "#C04E22", "#2F6F76"],
                 "typography": "Display: Cormorant Garamond / Body: Noto Sans TC",
-                "rationale": f"適合把『{goal or '主題'}』拆成可快速掃讀的內容塊。",
+                "rationale": f"適合把「{goal or '主題'}」拆成可快速掃讀的內容塊。",
                 "scene_focus": "重點訊息卡 + 穩定導覽節奏",
             },
             {
@@ -786,30 +786,30 @@ version: alpha
 name: {name} Design System
 description: Local-first design system for {name}
 colors:
-  background: \"#F6F1E8\"
-  surface: \"#FFF8EF\"
-  text: \"#191613\"
-  muted: \"#62564B\"
-  accent: \"#C4491D\"
+  background: "#F6F1E8"
+  surface: "#FFF8EF"
+  text: "#191613"
+  muted: "#62564B"
+  accent: "#C4491D"
 typography:
   display:
-    fontFamily: \"Noto Serif TC\"
-    fontSize: \"56px\"
+    fontFamily: "Noto Serif TC"
+    fontSize: "56px"
     fontWeight: 700
     lineHeight: 1.05
 rounded:
-  sm: \"8px\"
-  md: \"14px\"
-  lg: \"22px\"
+  sm: "8px"
+  md: "14px"
+  lg: "22px"
 spacing:
-  sm: \"8px\"
-  md: \"16px\"
-  lg: \"28px\"
+  sm: "8px"
+  md: "16px"
+  lg: "28px"
 components:
   button-primary:
-    backgroundColor: \"{{colors.accent}}\"
-    textColor: \"#FFFFFF\"
-    rounded: \"{{rounded.md}}\"
+    backgroundColor: "{{colors.accent}}"
+    textColor: "#FFFFFF"
+    rounded: "{{rounded.md}}"
 ---
 
 ## Overview

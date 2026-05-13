@@ -5,10 +5,11 @@ from typing import Any
 
 from fastapi import UploadFile
 
-from app.config import TEXT_DIR, UPLOAD_DIR, Settings
+from app.config import RUNTIME_ONLY_FIELDS, SETTINGS_PATH, TEXT_DIR, UPLOAD_DIR, Settings
 from app.embeddings import EmbeddingService
 from app.llama_client import LlamaClient
 from app.retrieval import chunk_text, retrieve
+from app.schemas import AppSettingsPayload
 from app.storage import Storage
 from app.text_extract import extract_text
 
@@ -249,19 +250,55 @@ class NotebookService:
         }
 
     def health(self) -> dict[str, Any]:
-        sources = {
-            "ocr_provider": self.settings.ocr_provider,
-            "ocr_languages": self.settings.ocr_languages,
-            "stt_provider": self.settings.stt_provider,
-            "whisper_model": self.settings.whisper_model,
-            "retrieval_provider": self.settings.embedding_provider,
-            "embedding_model": self.settings.embedding_model,
-        }
         return {
             "service": "JNotebookLM",
             "embeddings": self.embeddings.health(),
             "llama": self.llama.health(),
-            "features": sources,
+            "features": {
+                "ocr_provider": self.settings.ocr_provider,
+                "ocr_languages": self.settings.ocr_languages,
+                "stt_provider": self.settings.stt_provider,
+                "whisper_model": self.settings.whisper_model,
+                "retrieval_provider": self.settings.embedding_provider,
+                "embedding_model": self.settings.embedding_model,
+                "chunk_size": self.settings.chunk_size,
+                "chunk_overlap": self.settings.chunk_overlap,
+                "retrieval_top_k": self.settings.retrieval_top_k,
+            },
+        }
+
+    def get_settings(self) -> dict[str, Any]:
+        return self.settings.to_dict()
+
+    def update_settings(self, payload: AppSettingsPayload) -> dict[str, Any]:
+        previous = self.settings.to_dict()
+        updated = payload.model_dump()
+        self.settings.apply_overrides(updated)
+        self.settings.save_overrides(SETTINGS_PATH)
+
+        embedding_fields = {
+            "embedding_provider",
+            "embedding_model",
+            "embedding_threads",
+            "embedding_device",
+            "embedding_cache_dir",
+        }
+        if any(previous[field] != updated[field] for field in embedding_fields):
+            self.embeddings.invalidate()
+
+        restart_required_fields = [
+            field
+            for field in sorted(RUNTIME_ONLY_FIELDS)
+            if previous[field] != updated[field]
+        ]
+        note = None
+        if restart_required_fields:
+            note = "Host 和 port 已儲存，但需要重新啟動服務才會生效。"
+
+        return {
+            "settings": self.settings.to_dict(),
+            "restart_required_fields": restart_required_fields,
+            "note": note,
         }
 
     def _ensure_notebook_embeddings(self, notebook_id: str) -> list[dict[str, Any]]:

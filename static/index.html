@@ -9,10 +9,17 @@
   <body>
     <div class="tri-shell">
       <aside class="panel pane left-pane">
-        <div class="brand">
-          <p class="eyebrow">LOCAL SOURCE HUB</p>
-          <h1>JNotebookLM</h1>
-          <p class="muted">左側管理來源與 notebook；中間進行對話；右側做 Studio 產出與設計生成。</p>
+        <div class="brand-row">
+          <div class="brand">
+            <p class="eyebrow">LOCAL SOURCE HUB</p>
+            <h1>JNotebookLM</h1>
+            <p class="muted">
+              左側管理來源與 notebook；中間進行對話；右側做 Studio 產出與設計生成。
+            </p>
+          </div>
+          <button id="open-settings" class="settings-button" type="button" title="設定">
+            &#9881;
+          </button>
         </div>
 
         <section class="status-card">
@@ -152,6 +159,72 @@
         </section>
       </aside>
     </div>
+
+    <section id="settings-screen" class="settings-screen hidden" aria-hidden="true">
+      <div class="panel settings-shell">
+        <div class="settings-header">
+          <div>
+            <p class="eyebrow">MODEL CONTROL</p>
+            <h2>Settings</h2>
+            <p class="muted">調整各模型與處理參數。`host` 和 `port` 需要重啟服務才會生效。</p>
+          </div>
+          <button id="close-settings" class="ghost-button" type="button">關閉</button>
+        </div>
+
+        <form id="settings-form" class="settings-form">
+          <div class="settings-grid">
+            <section class="settings-group">
+              <h3>Server</h3>
+              <label>Host<input id="settings-host" name="host" type="text" /></label>
+              <label>Port<input id="settings-port" name="port" type="number" min="1" max="65535" /></label>
+            </section>
+
+            <section class="settings-group">
+              <h3>Retrieval</h3>
+              <label>Chunk Size<input id="settings-chunk-size" name="chunk_size" type="number" min="200" /></label>
+              <label>Chunk Overlap<input id="settings-chunk-overlap" name="chunk_overlap" type="number" min="0" /></label>
+              <label>Top K<input id="settings-top-k" name="retrieval_top_k" type="number" min="1" max="50" /></label>
+            </section>
+
+            <section class="settings-group">
+              <h3>Embeddings</h3>
+              <label>Provider<input id="settings-embedding-provider" name="embedding_provider" type="text" /></label>
+              <label>Model<input id="settings-embedding-model" name="embedding_model" type="text" /></label>
+              <label>Threads<input id="settings-embedding-threads" name="embedding_threads" type="number" min="1" /></label>
+              <label>Device<input id="settings-embedding-device" name="embedding_device" type="text" /></label>
+              <label>Cache Dir<input id="settings-embedding-cache-dir" name="embedding_cache_dir" type="text" /></label>
+            </section>
+
+            <section class="settings-group">
+              <h3>llama.cpp</h3>
+              <label>Base URL<input id="settings-llama-base-url" name="llama_base_url" type="text" /></label>
+              <label>Model<input id="settings-llama-model" name="llama_model" type="text" /></label>
+              <label>Timeout<input id="settings-llama-timeout" name="llama_timeout" type="number" min="5" /></label>
+              <label>API Key<input id="settings-llama-api-key" name="llama_api_key" type="text" /></label>
+            </section>
+
+            <section class="settings-group">
+              <h3>OCR</h3>
+              <label>Provider<input id="settings-ocr-provider" name="ocr_provider" type="text" /></label>
+              <label>Languages<input id="settings-ocr-languages" name="ocr_languages" type="text" placeholder="eng,chi_tra" /></label>
+            </section>
+
+            <section class="settings-group">
+              <h3>STT</h3>
+              <label>Provider<input id="settings-stt-provider" name="stt_provider" type="text" /></label>
+              <label>Whisper Model<input id="settings-whisper-model" name="whisper_model" type="text" /></label>
+              <label>Whisper Device<input id="settings-whisper-device" name="whisper_device" type="text" /></label>
+              <label>Compute Type<input id="settings-whisper-compute-type" name="whisper_compute_type" type="text" /></label>
+            </section>
+          </div>
+
+          <div class="settings-footer">
+            <div id="settings-status" class="settings-status">尚未載入設定。</div>
+            <button id="save-settings" class="accent" type="submit">儲存設定</button>
+          </div>
+        </form>
+      </div>
+    </section>
 
     <template id="notebook-item-template">
       <button class="notebook-item" type="button">

@@ -11,6 +11,8 @@ from fastapi.staticfiles import StaticFiles
 from app.config import STATIC_DIR, TEXT_DIR, UPLOAD_DIR, settings
 from app.design_service import DesignStudioService
 from app.schemas import (
+    AppSettingsPayload,
+    AppSettingsResponse,
     ChatRequest,
     ChatResponse,
     DesignAdvisorRequest,
@@ -39,12 +41,26 @@ settings.ensure_dirs()
 storage = Storage()
 service = NotebookService(settings, storage)
 design_service = DesignStudioService(settings, storage)
-app = FastAPI(title="JNotebookLM", version="0.1.0")
+app = FastAPI(title="JNotebookLM", version="0.2.0")
 
 
 @app.get("/api/health")
 def health() -> dict:
     return service.health()
+
+
+@app.get("/api/settings", response_model=AppSettingsResponse)
+def get_settings() -> dict:
+    return {
+        "settings": service.get_settings(),
+        "restart_required_fields": [],
+        "note": None,
+    }
+
+
+@app.put("/api/settings", response_model=AppSettingsResponse)
+def update_settings(payload: AppSettingsPayload) -> dict:
+    return service.update_settings(payload)
 
 
 @app.get("/api/notebooks", response_model=list[NotebookOut])
@@ -143,13 +159,12 @@ def run_design_advisor(session_id: str, payload: DesignAdvisorRequest) -> dict:
 @app.post("/api/design/sessions/{session_id}/artifacts", response_model=DesignArtifactOut)
 def create_design_artifact(session_id: str, payload: DesignArtifactGenerateRequest) -> dict:
     try:
-        result = design_service.generate_artifact(
+        return design_service.generate_artifact(
             session_id=session_id,
             artifact_type=payload.artifact_type,
             direction_name=payload.direction_name,
             requirements=payload.requirements,
         )
-        return result
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
@@ -208,4 +223,3 @@ def _remove_notebook_dir(base_dir: Path, notebook_id: str) -> None:
         return
     if target.exists():
         shutil.rmtree(target, ignore_errors=True)
-

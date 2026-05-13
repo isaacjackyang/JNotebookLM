@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+import json
 import os
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
+from typing import Any
 
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT_DIR / "data"
 DB_PATH = DATA_DIR / "jnotebooklm.db"
+SETTINGS_PATH = DATA_DIR / "app-settings.json"
 UPLOAD_DIR = DATA_DIR / "uploads"
 TEXT_DIR = DATA_DIR / "texts"
 MODEL_CACHE_DIR = DATA_DIR / "models"
@@ -15,6 +18,11 @@ DESIGN_DIR = DATA_DIR / "design"
 DESIGN_WORKSPACE_DIR = DESIGN_DIR / "workspaces"
 DESIGN_SESSION_DIR = DESIGN_DIR / "sessions"
 STATIC_DIR = ROOT_DIR / "static"
+
+RUNTIME_ONLY_FIELDS = {
+    "host",
+    "port",
+}
 
 
 def _split_csv(raw: str, fallback: list[str]) -> list[str]:
@@ -58,5 +66,38 @@ class Settings:
         ):
             path.mkdir(parents=True, exist_ok=True)
 
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+    def apply_overrides(self, payload: dict[str, Any]) -> None:
+        for key, value in payload.items():
+            if not hasattr(self, key):
+                continue
+            if key == "ocr_languages":
+                setattr(self, key, self._normalize_languages(value))
+                continue
+            setattr(self, key, value)
+
+    def load_overrides(self, path: Path = SETTINGS_PATH) -> None:
+        if not path.exists():
+            return
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        if isinstance(payload, dict):
+            self.apply_overrides(payload)
+
+    def save_overrides(self, path: Path = SETTINGS_PATH) -> None:
+        path.write_text(json.dumps(self.to_dict(), ensure_ascii=False, indent=2), encoding="utf-8")
+
+    @staticmethod
+    def _normalize_languages(value: Any) -> list[str]:
+        if isinstance(value, list):
+            items = [str(item).strip() for item in value if str(item).strip()]
+            return items or ["eng"]
+        if isinstance(value, str):
+            return _split_csv(value, ["eng"])
+        return ["eng"]
+
 
 settings = Settings()
+settings.ensure_dirs()
+settings.load_overrides()
